@@ -49,7 +49,7 @@ def dist_init():
     world_size = os.environ['SLURM_NTASKS']
     node_list = os.environ['SLURM_NODELIST']
     num_gpus = torch.cuda.device_count()
-    gpu_id = num_gpus
+    gpu_id = rank % num_gpus
     torch.cuda.set_device(gpu_id)
     
     
