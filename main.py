@@ -8,6 +8,7 @@ import json
 import os
 
 from pathlib import Path
+import shutil
 
 from timm.data import Mixup
 from timm.models import create_model
@@ -222,6 +223,7 @@ def main(args):
         pretrained=True,
         num_classes=args.nb_classes,
         drop_rate=args.drop,
+        drop_path_rate=args.drop_path,
         drop_block_rate=None,
     )
     
