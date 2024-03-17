@@ -298,6 +298,7 @@ def apply_patch(
     for module in model.modules():
         if isinstance(module, Block):
             module.__class__ = DiffRateBlock
+            module.initialize_drop_path()
             if block_index in non_compressed_block_index:
                 module.introduce_diffrate(model.patch_embed.num_patches, model.patch_embed.num_patches+1, model.patch_embed.num_patches+1)
             else:
