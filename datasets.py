@@ -9,7 +9,7 @@ from timm.data import create_transform
 def build_dataset(is_train, args):
 
     transform = build_transform(is_train, args)
-    if args.dataset == 'cifar10':
+    if args.dataset == 'cifar100':
         dataset = datasets.CIFAR100(args.data_path, train=is_train, transform=transform, download=True)
         nb_classes = 100
     elif args.data_set == 'IMNET':
