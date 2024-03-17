@@ -5,7 +5,7 @@
 #SBATCH -p gpu --gres=gpu:titanrtx:1
 
 # Set the path to the ImageNet dataset
-export path_to_imagenet=/your/path/to/imagenet
+export path_to_imagenet=/MAE-prune
 
 # Load Python module
 module load python/3.9.9
