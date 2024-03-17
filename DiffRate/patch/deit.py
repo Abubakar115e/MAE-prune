@@ -31,10 +31,15 @@ class DiffRateBlock(Block):
      - Apply DiffRate between the attention and mlp blocks
      - Compute and propogate token size and potentially the token sources.
     """
+    def __init__(self, *args, **kwargs):
+        super(DiffRateBlock, self).__init__(*args, **kwargs)
+        self.drop_path = nn.Dropout(p=0.1)  
+
+    # Rest of your code...
     def introduce_diffrate(self,patch_number, prune_granularity, merge_granularity):
         self.prune_ddp = DiffRate(patch_number,prune_granularity)
         self.merge_ddp = DiffRate(patch_number,merge_granularity)
-        
+   
     
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         B, N, C = x.shape
@@ -123,7 +128,7 @@ class DiffRateAttention(Attention):
      - Apply proportional attention
      - Return the mean of k over heads from attention
     """
-
+    
     def softmax_with_policy(self, attn, policy, eps=1e-6):
         B, N = policy.size()
         B, H, N, N = attn.size()
