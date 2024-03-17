@@ -222,7 +222,6 @@ def main(args):
         pretrained=True,
         num_classes=args.nb_classes,
         drop_rate=args.drop,
-        drop_path_rate=args.drop_path,
         drop_block_rate=None,
     )
     
