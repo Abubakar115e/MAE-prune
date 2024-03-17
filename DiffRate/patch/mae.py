@@ -62,9 +62,9 @@ def make_diffrate_class(transformer_class):
                 else:
                     T = self._diffrate_info["size"][:, 1:, :].sum(dim=1)
                     if self._diffrate_info["size"] is not None:
-                        x = (x * (self._diffrate_info["size"]))[:, 1:, :].sum(dim=1) / T
+                        x = (x * (self._diffrate_info["size"]))[:, 1:, :]  # Removed sum(dim=1) / T
                     else:
-                        x = x[:, 1:, :].mean(dim=1)  # global pool without cls token
+                        x = x[:, 1:, :]  # Removed mean(dim=1) since it causes shape mismatch
                     outcome = self.fc_norm(x)
             else:
                 x = self.norm(x)
@@ -72,6 +72,7 @@ def make_diffrate_class(transformer_class):
                 outcome = x[:, 0]            
 
             return outcome
+
         
         def parameters(self, recurse=True):
             # original network parameter
