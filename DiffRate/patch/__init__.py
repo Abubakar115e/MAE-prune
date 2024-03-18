@@ -5,6 +5,8 @@
 # LICENSE file in the root directory of this source tree.
 # --------------------------------------------------------
 
+from .deit import apply_patch as deit
 from .mae import apply_patch as mae
+from .caformer import apply_patch as caformer
 
-__all__ = [ "mae"]
+__all__ = ["deit", "mae", "caformer"]
