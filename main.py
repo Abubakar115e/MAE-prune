@@ -164,7 +164,7 @@ def get_args_parser():
                         help='Pin CPU memory in DataLoader for more efficient (sometimes) transfer to GPU.')
     parser.add_argument('--no-pin-mem', action='store_false', dest='pin_mem',
                         help='')
-    parser.set_defaults(pin_mem=True)
+    parser.set_defaults(pin_mem=False)
     parser.add_argument('--target_flops', type=float, default=3.0)
     parser.add_argument('--granularity', type=int, default=4, help='the token number gap between each compression rate candidate')
     parser.add_argument('--load_compression_rate', action='store_true', help='eval by exiting compression rate in compression_rate.json')
