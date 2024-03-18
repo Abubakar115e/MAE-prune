@@ -31,14 +31,10 @@ class DiffRateBlock(Block):
      - Apply DiffRate between the attention and mlp blocks
      - Compute and propogate token size and potentially the token sources.
     """
-    def __init__(self, *args, **kwargs):
-        super(DiffRateBlock, self).__init__(*args, **kwargs)
-        self.drop_path = nn.Dropout(p=0.1)  
-
     def introduce_diffrate(self,patch_number, prune_granularity, merge_granularity):
         self.prune_ddp = DiffRate(patch_number,prune_granularity)
         self.merge_ddp = DiffRate(patch_number,merge_granularity)
-   
+        
     
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         B, N, C = x.shape
@@ -46,9 +42,6 @@ class DiffRateBlock(Block):
         size = self._diffrate_info["size"]
         mask = self._diffrate_info["mask"]
         x_attn, attn = self.attn(self.norm1(x), size, mask=self._diffrate_info["mask"])
-        # Ensure drop_path is initialized
-        if not hasattr(self, 'drop_path'):
-            self.drop_path = nn.Dropout(p=0.1)  
         x = x + self.drop_path(x_attn)
 
         # importance metric
@@ -130,7 +123,7 @@ class DiffRateAttention(Attention):
      - Apply proportional attention
      - Return the mean of k over heads from attention
     """
-    
+
     def softmax_with_policy(self, attn, policy, eps=1e-6):
         B, N = policy.size()
         B, H, N, N = attn.size()
@@ -300,7 +293,6 @@ def apply_patch(
     for module in model.modules():
         if isinstance(module, Block):
             module.__class__ = DiffRateBlock
-            module.initialize_drop_path()
             if block_index in non_compressed_block_index:
                 module.introduce_diffrate(model.patch_embed.num_patches, model.patch_embed.num_patches+1, model.patch_embed.num_patches+1)
             else:
