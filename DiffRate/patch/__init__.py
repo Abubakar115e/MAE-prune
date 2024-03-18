@@ -7,4 +7,6 @@
 
 from .deit import apply_patch as deit
 from .mae import apply_patch as mae
-__all__ = [ "mae", "deit"]
+from .caformer import apply_patch as caformer
+
+__all__ = ["deit", "mae", "caformer"]
