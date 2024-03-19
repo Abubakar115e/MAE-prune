@@ -175,7 +175,6 @@ def main(args):
     device = torch.device(args.device)
 
     # fix the seed for reproducibility
-)
 
     cudnn.benchmark = True
 
