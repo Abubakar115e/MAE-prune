@@ -1,5 +1,3 @@
-# Copyright (c) 2015-present, Facebook, Inc.
-# All rights reserved.
 import argparse
 import datetime
 import numpy as np
@@ -21,8 +19,8 @@ from timm.utils import NativeScaler, get_state_dict, ModelEma
 from datasets import build_dataset
 from engine import train_one_epoch, evaluate
 from samplers import RASampler
-import shutil
 import warnings
+from utils import MultiEpochsDataLoader
 from timm.scheduler.cosine_lr import CosineLRScheduler
 
 import models_mae
@@ -38,7 +36,7 @@ def get_args_parser():
     parser.add_argument('--epochs', default=300, type=int)
 
     # Model parameters
-    parser.add_argument('--model', default='deit_base_patch16_224', type=str, metavar='MODEL',
+    parser.add_argument('--model', default='vit_huge_patch14_mae', type=str, metavar='MODEL',
                         help='Name of model to train')
     parser.add_argument('--multi-reso', default=False, action='store_true',help='')
     parser.add_argument('--input-size', default=224, type=int, help='images input size')
@@ -140,7 +138,9 @@ def get_args_parser():
     parser.add_argument('--finetune', default='', help='finetune from checkpoint')
 
     # Dataset parameters
-    parser.add_argument('--data-set', default='CIFAR', choices=['CIFAR'],
+    parser.add_argument('--data-path', default='/datasets01/imagenet_full_size/061417/', type=str,
+                        help='dataset path')
+    parser.add_argument('--data-set', default='IMNET', choices=['CIFAR'],
                         type=str, help='Image Net dataset path')
     parser.add_argument('--inat-category', default='name',
                         choices=['kingdom', 'phylum', 'class', 'order', 'supercategory', 'family', 'genus', 'name'],
@@ -162,19 +162,47 @@ def get_args_parser():
                         help='Pin CPU memory in DataLoader for more efficient (sometimes) transfer to GPU.')
     parser.add_argument('--no-pin-mem', action='store_false', dest='pin_mem',
                         help='')
-    parser.set_defaults(pin_mem=False)
-
+    parser.set_defaults(pin_mem=True)
     return parser
 
 
-def main(args):
 
+
+def main(args):
+    output_dir = Path(args.output_dir)
+    logger = utils.create_logger(output_dir)
+    logger.info(args)
 
     device = torch.device(args.device)
 
     # fix the seed for reproducibility
-
+    seed = args.seed
+    torch.manual_seed(seed)
+    np.random.seed(seed)
     cudnn.benchmark = True
+
+    dataset_train, args.nb_classes = build_dataset(is_train=True, args=args)
+    dataset_val, _ = build_dataset(is_train=False, args=args)
+
+    sampler_train = torch.utils.data.RandomSampler(dataset_train)
+    sampler_val = torch.utils.data.SequentialSampler(dataset_val)
+
+    # leveraging MultiEpochsDataLoader for faster data loading
+    data_loader_train = MultiEpochsDataLoader(
+        dataset_train, sampler=sampler_train,
+        batch_size=args.batch_size,
+        num_workers=args.num_workers,
+        pin_memory=args.pin_mem,
+        drop_last=True,
+    )
+
+    data_loader_val = MultiEpochsDataLoader(
+        dataset_val, sampler=sampler_val,
+        batch_size=int(1 * args.batch_size),
+        num_workers=args.num_workers,
+        pin_memory=args.pin_mem,
+        drop_last=False
+    )
 
     mixup_fn = None
     mixup_active = args.mixup > 0 or args.cutmix > 0. or args.cutmix_minmax is not None
@@ -183,8 +211,7 @@ def main(args):
             mixup_alpha=args.mixup, cutmix_alpha=args.cutmix, cutmix_minmax=args.cutmix_minmax,
             prob=args.mixup_prob, switch_prob=args.mixup_switch_prob, mode=args.mixup_mode,
             label_smoothing=args.smoothing, num_classes=args.nb_classes)
-    
-    
+
     logger.info(f"Creating model: {args.model}")
     model = create_model(
         args.model,
@@ -194,40 +221,25 @@ def main(args):
         drop_path_rate=args.drop_path,
         drop_block_rate=None,
     )
-    
-    
+
     # DiffRate Patch
-    if 'deit' in args.model:
-        DiffRate.patch.deit(model, prune_granularity=args.granularity, merge_granularity=args.granularity)
-    elif 'mae' in args.model:
+    if 'mae' in args.model:
         DiffRate.patch.mae(model, prune_granularity=args.granularity, merge_granularity=args.granularity)
-    elif 'caformer' in args.model:
-        DiffRate.patch.caformer(model, prune_granularity=args.granularity, merge_granularity=args.granularity)
     else:
-        raise ValueError("only support deit, mae and caformer in this codebase")
-    
+        raise ValueError("only support vit_huge_patch14_mae in this codebase")
+
     model_name_dict = {
-        'vit_deit_tiny_patch16_224':'ViT-T-DeiT',
-        'vit_deit_small_patch16_224':'ViT-S-DeiT',
-        'vit_deit_base_patch16_224': 'ViT-B-DeiT',
-        'vit_base_patch16_mae': 'ViT-B-MAE',
-        'vit_large_patch16_mae': 'ViT-L-MAE',
         'vit_huge_patch14_mae': 'ViT-H-MAE',
-        'caformer_s36':'CAFormer-S36',
     }
     if args.load_compression_rate:
         with open('compression_rate.json', 'r') as f:
             compression_rate = json.load(f) 
             model_name = model_name_dict[args.model]
             if not str(args.target_flops) in compression_rate[model_name]:
-                raise ValueError(f"compression_rate.json does not contaion {model_name} with {args.target_flops}G flops")
+                raise ValueError(f"compression_rate.json does not contain {model_name} with {args.target_flops}G flops")
             prune_kept_num = eval(compression_rate[model_name][str(args.target_flops)]['prune_kept_num'])
             merge_kept_num = eval(compression_rate[model_name][str(args.target_flops)]['merge_kept_num'])
             model.set_kept_num(prune_kept_num, merge_kept_num)
-            
-            
-        
-    
 
     if args.finetune:
         if args.finetune.startswith('https'):
@@ -267,27 +279,20 @@ def main(args):
     model.to(device)
 
     model_without_ddp = model
-    if args.distributed:
-        model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[args.gpu])
-        model_without_ddp = model.module
     n_parameters = sum(p.numel() for p in model.parameters() if p.requires_grad)
     logger.info(f'number of params: {n_parameters}')
 
-    linear_scaled_lr = args.lr * args.batch_size * utils.get_world_size() / 512.0
+    linear_scaled_lr = args.lr * args.batch_size / 512.0
     args.lr = linear_scaled_lr
 
-
     if args.eval:
-        test_stats = evaluate(data_loader_val, model, device,logger)
+        test_stats = evaluate(data_loader_val, model, device, logger)
         logger.info(f"Accuracy of the network on the {len(dataset_val)} test images: {test_stats['acc1']:.1f}%")
         return
-    
 
-    optimizer = torch.optim.AdamW(model_without_ddp.arch_parameters(), lr=args.arch_lr,weight_decay=0)
+    optimizer = torch.optim.AdamW(model_without_ddp.arch_parameters(), lr=args.arch_lr, weight_decay=0)
     loss_scaler = utils.NativeScalerWithGradNormCount()
     lr_scheduler = CosineLRScheduler(optimizer, t_initial=args.epochs, lr_min=args.arch_min_lr, decay_rate=args.decay_rate )
-
-
 
     criterion = LabelSmoothingCrossEntropy()
 
@@ -299,7 +304,6 @@ def main(args):
     else:
         criterion = torch.nn.CrossEntropyLoss()
 
-    
     if args.autoresume and os.path.exists(os.path.join(args.output_dir, 'checkpoint.pth')):
         args.resume = os.path.join(args.output_dir, 'checkpoint.pth')
     if args.resume:
@@ -316,17 +320,13 @@ def main(args):
             if 'scaler' in checkpoint:
                 loss_scaler.load_state_dict(checkpoint['scaler'])
 
-
     logger.info(f"Start training for {args.epochs} epochs")
     start_time = time.time()
     max_accuracy = 0.0
     for epoch in range(args.start_epoch, args.epochs):
-        if args.distributed:
-            data_loader_train.sampler.set_epoch(epoch)
-
         train_stats = train_one_epoch(
             model, criterion, data_loader_train,
-            optimizer,device, epoch, loss_scaler,
+            optimizer, device, epoch, loss_scaler,
             args.clip_grad, mixup_fn,
             set_training_mode=args.finetune == '',  # keep in eval mode during finetuning
             logger=logger, 
@@ -347,9 +347,9 @@ def main(args):
                     'args': args,
                 }, checkpoint_path)
 
-        test_stats = evaluate(data_loader_val, model, device,logger=logger)
+        test_stats = evaluate(data_loader_val, model, device, logger=logger)
         logger.info(f"Accuracy of the network on the {len(dataset_val)} test images: {test_stats['acc1']:.1f}%")
-        if utils.is_main_process() and max_accuracy < test_stats['acc1'] :
+        if max_accuracy < test_stats['acc1']:
             shutil.copyfile(checkpoint_path, f'{args.output_dir}/model_best.pth')
         max_accuracy = max(max_accuracy, test_stats["acc1"])
         logger.info(f'Max accuracy: {max_accuracy:.2f}%')
@@ -359,7 +359,7 @@ def main(args):
                      'epoch': epoch,
                      'n_parameters': n_parameters}
 
-        if args.output_dir and utils.is_main_process():
+        if args.output_dir:
             with (output_dir / "log.txt").open("a") as f:
                 f.write(json.dumps(log_stats) + "\n")
 
