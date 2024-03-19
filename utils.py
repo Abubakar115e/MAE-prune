@@ -29,7 +29,7 @@ import socket
 import random
 
 
-def dist_init(port=6818):
+def dist_init(port=6817):
     if multiprocessing.get_start_method(allow_none=True) != 'spawn':
         multiprocessing.set_start_method('spawn', force=True)
     
