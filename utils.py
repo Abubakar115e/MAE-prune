@@ -20,7 +20,7 @@ import logging
 from termcolor import colored
 import sys
 
-from torch import inf
+from torch._six import inf
 import numpy as np
 import math
 import multiprocessing
@@ -29,19 +29,7 @@ import socket
 import random
 
 
-def dist_init():
-    # Get the name of the network interface that uses IPv4
-    network_interface = 'ens224'  
-    os.environ['GLOO_SOCKET_IFNAME'] = network_interface
-    os.environ['NCCL_SOCKET_IFNAME'] = network_interface
-
-    os.environ['MASTER_ADDR'] = 'localhost'
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.bind(('', 0))            # Bind to a free port provided by the host.
-        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        port = str(s.getsockname()[1])  # Get the port number
-    os.environ['MASTER_PORT'] = port
-
+def dist_init(port=4331):
     if multiprocessing.get_start_method(allow_none=True) != 'spawn':
         multiprocessing.set_start_method('spawn', force=True)
     
@@ -51,7 +39,6 @@ def dist_init():
     num_gpus = torch.cuda.device_count()
     gpu_id = rank % num_gpus
     torch.cuda.set_device(gpu_id)
-    
     
     if '[' in node_list:
         beg = node_list.find('[')
@@ -90,7 +77,7 @@ def init_distributed_mode(args):
         print('use SLURM_PROCID')
         args.distributed = True
         
-        args.rank, args.world_size, args.local_rank = dist_init()
+        args.rank, args.world_size, args.local_rank = dist_init(port=args.port)
         args.gpu = args.rank % torch.cuda.device_count()
         args.num_gpu = 1
         args.device = 'cuda:%d' % args.local_rank
