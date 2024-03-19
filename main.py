@@ -173,7 +173,7 @@ def get_args_parser():
 
 def main(args):
     output_dir = Path(args.output_dir)
-    logger = utils.create_logger(output_dir)
+    logger = create_logger(output_dir)
     logger.info(args)
 
     device = torch.device(args.device)
@@ -294,7 +294,7 @@ def main(args):
         return
 
     optimizer = torch.optim.AdamW(model_without_ddp.arch_parameters(), lr=args.arch_lr, weight_decay=0)
-    loss_scaler = utils.NativeScalerWithGradNormCount()
+    loss_scaler = NativeScalerWithGradNormCount()
     lr_scheduler = CosineLRScheduler(optimizer, t_initial=args.epochs, lr_min=args.arch_min_lr, decay_rate=args.decay_rate )
 
     criterion = LabelSmoothingCrossEntropy()
@@ -341,7 +341,7 @@ def main(args):
         if args.output_dir:
             checkpoint_paths = [output_dir / 'checkpoint.pth']
             for checkpoint_path in checkpoint_paths:
-                utils.save_on_master({
+                save_on_master({
                     'model': model_without_ddp.state_dict(),
                     'optimizer': optimizer.state_dict(),
                     'lr_scheduler': lr_scheduler.state_dict(),
