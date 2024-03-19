@@ -21,14 +21,12 @@ from timm.utils import NativeScaler, get_state_dict, ModelEma
 from datasets import build_dataset
 from engine import train_one_epoch, evaluate
 from samplers import RASampler
-import utils
 import shutil
 import warnings
 from utils import MultiEpochsDataLoader
 from timm.scheduler.cosine_lr import CosineLRScheduler
 
 import models_mae
-import caformer
 import DiffRate
 
 
@@ -167,19 +165,8 @@ def get_args_parser():
                         help='Pin CPU memory in DataLoader for more efficient (sometimes) transfer to GPU.')
     parser.add_argument('--no-pin-mem', action='store_false', dest='pin_mem',
                         help='')
-    parser.set_defaults(pin_mem=True)
+    parser.set_defaults(pin_mem=False)
 
-    # distributed training parameters
-    parser.add_argument('--world_size', default=1, type=int,
-                        help='number of distributed processes')
-    parser.add_argument('--port', default="15662", type=str,
-                        help='number of distributed processes')
-    parser.add_argument('--dist_url', default='env://', help='url used to set up distributed training')
-
-    parser.add_argument('--target_flops', type=float, default=3.0)
-    parser.add_argument('--granularity', type=int, default=4, help='the token number gap between each compression rate candidate')
-    parser.add_argument('--load_compression_rate', action='store_true', help='eval by exiting compression rate in compression_rate.json')
-    parser.add_argument('--warmup_compression_rate', action='store_true', default=False, help='inactive computational constraint in first epoch')
     return parser
 
 
