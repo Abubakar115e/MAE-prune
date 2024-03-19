@@ -35,7 +35,7 @@ def dist_init():
     os.environ['GLOO_SOCKET_IFNAME'] = network_interface
     os.environ['NCCL_SOCKET_IFNAME'] = network_interface
 
-    os.environ['MASTER_ADDR'] = os.environ['SLURM_NODELIST'].split(',')[0]
+    os.environ['MASTER_ADDR'] = 'localhost'
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.bind(('', 0))            # Bind to a free port provided by the host.
         s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
