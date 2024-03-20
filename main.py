@@ -139,7 +139,7 @@ def get_args_parser():
     parser.add_argument('--finetune', default='', help='finetune from checkpoint')
 
     # Dataset parameters
-    parser.add_argument('--data-path', default='/datasets01/imagenet_full_size/061417/', type=str,
+    parser.add_argument('--data-path', default='/MAE-prune', type=str,
                         help='dataset path')
     parser.add_argument('--data-set', default='CIFAR', choices=['CIFAR'],
                         type=str, help='Image Net dataset path')
