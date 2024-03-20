@@ -87,6 +87,7 @@ def evaluate(data_loader, model, device, logger=None):
 
         with torch.cuda.amp.autocast():
             output, flops = model(images)
+            print(output.shape)
             output = output[:, -1, :]
             loss = criterion(output, target)
 
