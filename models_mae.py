@@ -16,10 +16,7 @@ import torch.nn as nn
 
 import timm.models.vision_transformer
 from timm.models.registry import register_model
-try:
-    from torch.hub import load_state_dict_from_url
-except ImportError:
-    from torch.utils.model_zoo import load_url as load_state_dict_from_urlfrom
+from timm.models.helpers import load_state_dict_from_url
 from timm.data import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD
 
 
@@ -84,7 +81,7 @@ def load_checkpoint_mae(model, checkpoint_url, strict=True):
 
 
 @register_model
-def vit_huge_patch14_mae(pretrained=False,**kwargs):
+def vit_huge_patch14_mae(pretrained=False, num_classes=100, **kwargs):
     model = VisionTransformer(
         patch_size=14, embed_dim=1280, depth=32, num_heads=16, mlp_ratio=4, qkv_bias=True,
         norm_layer=partial(nn.LayerNorm, eps=1e-6), **kwargs)
